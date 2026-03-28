@@ -1,6 +1,6 @@
 require("dotenv").config()
 var express = require("express")
-const connectToDatabase = require("./DataBase/db")
+const connectToDatabase = require("./DataBase/db.js")
 var useRoutes = require("./Routes/userRoutes")
 
 var app = express()
