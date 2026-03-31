@@ -2,9 +2,11 @@
 var Product = require("../Model/ProductModel")
 
 
+
 var getAllProducts = async(req,res)=>{
     try{
         var allProducts =  await Product.find()
+        console.log(req.user);
         res.status(200).json({products: allProducts})
 
     }catch(error){
