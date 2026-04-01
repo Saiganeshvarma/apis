@@ -1,5 +1,8 @@
 
-var Product = require("../Model/ProductModel")
+var Product = require("../Model/ProductModel");
+const { uploadToCloudinary } = require("../helper/cloudinaryhelper");
+
+
 
 
 
@@ -28,11 +31,21 @@ var getSingleProduct = async(req,res)=>{
 
 var addNewProduct = async(req,res)=>{
     try{
+
         var {title,description,price} = req.body
+        if(!req.file){
+            return res.status(200).json({message : "file missing"})
+        }
+        // upload to cloudinary
+        var {url,publicId} = uploadToCloudinary(req.file.path)
         var newProduct = await Product.create({
         title,
         description,
-        price
+        price,
+        image : {
+            url,
+            publicId
+        }
     })
     res.status(201).json({message : "productadded",product : newProduct})
     }catch(error){
