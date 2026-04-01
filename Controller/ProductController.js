@@ -37,7 +37,7 @@ var addNewProduct = async(req,res)=>{
             return res.status(200).json({message : "file missing"})
         }
         // upload to cloudinary
-        var {url,publicId} = uploadToCloudinary(req.file.path)
+        var {url,publicId} = await uploadToCloudinary(req.file.path)
         var newProduct = await Product.create({
         title,
         description,
