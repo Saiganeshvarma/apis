@@ -26,7 +26,7 @@ router.get("/products", authMiddleware, getAllProducts);
  * @desc    Get single product
  * @access  Private (Admin)
  */
-router.get("/products/:id", authMiddleware, adminMiddleware, getSingleProduct);
+router.get("/products/:id", authMiddleware, getSingleProduct);
 
 /**
  * @route   POST /products
@@ -35,8 +35,8 @@ router.get("/products/:id", authMiddleware, adminMiddleware, getSingleProduct);
  */
 router.post(
   "/products",
-//   authMiddleware,
-//   adminMiddleware,
+  authMiddleware,
+  adminMiddleware,
   upload.single("image"),
   addNewProduct
 );
