@@ -24,12 +24,6 @@ app.use("/api/profileRoutes",profileRoutes)
 
 app.use("/api/cartRoutes",cartRoutes)
 
-
-
-
-
-
-
 connectToDatabase()
 
 
