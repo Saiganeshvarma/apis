@@ -5,7 +5,8 @@ var Product = require("../Model/ProductModel")
 var razorpay = require("../config/razorpay")
 
 
-var paymentController = async(req,res)=>{
+
+var checkoutController = async(req,res)=>{
     try{
         var userId = req.user.id 
         var cart = await Cart.findOne({userId})
@@ -16,11 +17,12 @@ var paymentController = async(req,res)=>{
             })
         }
 
-        var totalAmount = 0 
+        var totalAmount = 0
+    
 
         for(var item of cart.items){
             var product = await Product.findById(item.product)
-            totalAmount += product.price + item.quantity
+            totalAmount += product.price * item.quantity
         }
 
         var order = await razorpay.orders.create({
@@ -42,7 +44,7 @@ var paymentController = async(req,res)=>{
 
 
 module.exports = {
-    paymentController
+    checkoutController
 }
 
 

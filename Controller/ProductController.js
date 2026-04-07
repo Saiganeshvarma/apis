@@ -5,6 +5,7 @@ const { uploadToCloudinary } = require("../helper/cloudinaryhelper");
 
 
 
+
 var getAllProducts = async(req,res)=>{
     try{
         var allProducts =  await Product.find()
