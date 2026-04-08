@@ -1,34 +1,24 @@
 var mongoose = require("mongoose")
 
-
 var orderSchema = new mongoose.Schema({
-    userId : {
-        type : String
-    },
-    items : [
+    userId: String,
+
+    items: [
         {
-            product : {
-                type : String
-            },
-            quantity : {
-                type : String
-                
-            }
+            product: String,
+            quantity: Number
         }
     ],
-    totalAmount : {
-        type : Number
+
+    totalAmount: Number,
+
+    status: {
+        type: String,
+        default: "pending"
     },
-    status : {
-        type  : String,
-        default : "pending"
-    },
-    paymentId : {
-        type : String
-    }
 
-})
+    paymentId: String
 
-var order = mongoose.model("order",orderSchema)
+}, { timestamps: true })
 
-module.exports = order
+module.exports = mongoose.model("Order", orderSchema)

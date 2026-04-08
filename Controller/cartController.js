@@ -6,7 +6,7 @@ var Cart = require("../Model/cartModel")
 
 var getCart = async (req, res) => {
     try {
-        var userId = req.user.id
+        var userId = req.user.userId
         var cart = await Cart.findOne({ userId })
 
         res.status(200).json({ cart })
@@ -23,7 +23,7 @@ var getCart = async (req, res) => {
 // ===================
 var addToCart = async (req, res) => {
     try {
-        var userId = req.user.id
+        var userId = req.user.userId
         var { productId } = req.body
 
         var cart = await Cart.findOne({ userId })

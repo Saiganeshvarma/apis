@@ -21,6 +21,8 @@ app.use(cors())
 
 app.use("/api/userRoutes",useRoutes)
 
+
+
 app.use("/api/productRoutes",productRoutes)
 
 app.use("/api/profileRoutes",profileRoutes)

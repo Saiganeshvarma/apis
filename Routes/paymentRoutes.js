@@ -1,15 +1,12 @@
 var express = require("express")
-const { checkoutController } = require("../Controller/paymentController")
-const { verifyPayment } = require("../Controller/verifyPaymentController")
-const authMiddleware = require("../Middleware/authMiddleware")
 
+var authMiddleware = require("../Middleware/authMiddleware")
+var { checkout } = require("../Controller/paymentController")
+var { verifyPayment } = require("../Controller/verifyPaymentController")
 
 var router = express.Router()
 
-
-
-router.post("/checkout",authMiddleware,checkoutController)
-
-router.post("/verifypayment",authMiddleware,verifyPayment)
+router.post("/checkout", authMiddleware, checkout)
+router.post("/verifypayment", authMiddleware, verifyPayment)
 
 module.exports = router 
