@@ -8,20 +8,17 @@ var productRoutes = require("./Routes/ProductRoutes.js")
 var profileRoutes = require("./Routes/profileRoutes.js")
 var cartRoutes = require("./Routes/cartRoutes.js")
 var paymentRoutes = require("./Routes/paymentRoutes.js")
-
 var orderRoutes = require("./Routes/orderRoutes.js")
 
 
 
 var app = express()
 
-
-app.use(express.json())
 app.use(cors())
+app.use(express.json())
+
 
 app.use("/api/userRoutes",useRoutes)
-
-
 
 app.use("/api/productRoutes",productRoutes)
 

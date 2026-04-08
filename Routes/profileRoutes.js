@@ -10,4 +10,4 @@ router.get("/profile/:id",getProfile)
 router.put("/updateprofile/:id",updateProfile)
 
 
-module.exports = router
+module.exports = router 

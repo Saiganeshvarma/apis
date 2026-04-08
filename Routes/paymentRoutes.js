@@ -9,4 +9,4 @@ var router = express.Router()
 router.post("/checkout", authMiddleware, checkout)
 router.post("/verifypayment", authMiddleware, verifyPayment)
 
-module.exports = router 
+module.exports = router
