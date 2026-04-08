@@ -270,10 +270,3 @@ Order Created → View Orders
 
 ---
 
-If you want, I can next help you make this even better with:
-
-✅ Swagger UI (interactive docs)
-✅ Postman Collection
-✅ Add screenshots + project explanation for resume
-
-Just tell me 👍

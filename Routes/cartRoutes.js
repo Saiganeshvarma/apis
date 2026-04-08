@@ -1,13 +1,14 @@
-var express = require("express")
-const { getCart, addToCart } = require("../Controller/cartController")
-const authMiddleware = require("../Middleware/authMiddleware")
+const express = require("express");
+const router = express.Router();
 
+// Import controllers
+const { getCart, addToCart } = require("../Controller/cartController");
 
-var router = express.Router()
+// Import middleware
+const authMiddleware = require("../Middleware/authMiddleware");
 
+// Routes
+router.get("/cart", authMiddleware, getCart);
+router.post("/cart", authMiddleware, addToCart); // changed endpoint for consistency
 
-router.get("/cart",authMiddleware,getCart)
-
-router.post("/addcart",authMiddleware,addToCart)
-
-module.exports = router 
+module.exports = router;
