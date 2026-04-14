@@ -19,7 +19,7 @@ const router = express.Router();
  * @desc    Get all products
  * @access  Private
  */
-router.get("/products", authMiddleware, getAllProducts);
+router.get("/products", getAllProducts);
 
 /**
  * @route   GET /products/:id
