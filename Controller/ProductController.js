@@ -65,11 +65,20 @@ var getSingleProduct = async(req,res)=>{
 var addNewProduct = async (req, res) => {
     try {
         var { title, description, price } = req.body;
+        if(!req.file){
+            return res.status(400).json({message : "missing file"})
+        }
+
+        var result = uploadToCloudinary(req.file.path)
 
         var newProduct = await Product.create({
             title,
             description,
-            price
+            price,
+            image: {
+                publicId: result.public_id,
+                url: result.secure_url
+            }
         });
 
         // clear cache
