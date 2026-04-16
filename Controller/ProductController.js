@@ -17,12 +17,12 @@ var getAllProducts = async (req, res) => {
 
         var cachedData = await client.get(cacheKey);
 
-        if (cachedData) {
-            console.log("data from redis");
-            return res.status(200).json({
-                products: JSON.parse(cachedData)
-            });
-        }
+        // if (cachedData) {
+        //     console.log("data from redis");
+        //     return res.status(200).json({
+        //         products: JSON.parse(cachedData)
+        //     });
+        // }
 
         var allProducts = await Product.find().skip(skip).limit(limit)
 
