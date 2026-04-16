@@ -61,15 +61,26 @@ var getSingleProduct = async(req,res)=>{
     }
 }
 
-
 var addNewProduct = async (req, res) => {
     try {
-        var { title, description, price } = req.body;
-        if(!req.file){
-            return res.status(400).json({message : "missing file"})
+        // ✅ debug (remove later)
+        console.log("BODY:", req.body);
+        console.log("FILE:", req.file);
+
+        // ✅ check body first
+        if (!req.body) {
+            return res.status(400).json({ message: "Body is missing" });
         }
 
-        var result = uploadToCloudinary(req.file.path)
+        var { title, description, price } = req.body;
+
+        // ✅ check file
+        if (!req.file) {
+            return res.status(400).json({ message: "Image file is required" });
+        }
+
+        // ✅ upload image
+        const result = await uploadToCloudinary(req.file.path);
 
         var newProduct = await Product.create({
             title,
@@ -81,8 +92,11 @@ var addNewProduct = async (req, res) => {
             }
         });
 
-        // clear cache
-        await client.del("allproducts"); // fix key name
+        // ✅ clear cache properly
+        const keys = await client.keys("allproducts:*");
+        if (keys.length > 0) {
+            await client.del(keys);
+        }
 
         res.status(201).json({
             message: "product added",
