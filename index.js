@@ -29,7 +29,7 @@ const startServer = async () => {
   const { productLimiter, adminLimiter } = createLimiters();
 
   // ✅ 3. Apply limiters
-  app.use("/api/productRoutes", productLimiter, productRoutes);
+  app.use("/api/productRoutes", productRoutes);
   app.use("/api/adminRoutes", adminLimiter); // optional for admin
 
   // routes
