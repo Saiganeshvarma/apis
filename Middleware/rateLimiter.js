@@ -9,8 +9,8 @@ const createLimiters = () => {
     store: new RedisStore({
       sendCommand: (...args) => client.sendCommand(args),
     }),
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: 1 * 60 * 1000,
+    max: 5,
     message: {
       success: false,
       message: "Too many requests, please try again later",

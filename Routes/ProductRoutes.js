@@ -35,9 +35,7 @@ router.get("/products/:id", authMiddleware, getSingleProduct);
  */
 router.post(
   "/products",
-  authMiddleware,
-  adminMiddleware,
-  upload.single("image"),
+  // upload.single("image"),
   addNewProduct
 );
 

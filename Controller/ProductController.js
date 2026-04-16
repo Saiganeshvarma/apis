@@ -8,7 +8,12 @@ var {client} = require("../config/redisClient")
 
 var getAllProducts = async (req, res) => {
     try {
-        var cacheKey = "allproducts";
+        var page = parseInt(req.query.page) || 1
+        var limit = parseInt(req.query.limit) || 10
+        var skip = (page-1)*limit
+
+        var cacheKey = `allproducts:${page}:${limit}`;
+
 
         var cachedData = await client.get(cacheKey);
 
@@ -19,9 +24,9 @@ var getAllProducts = async (req, res) => {
             });
         }
 
-        var allProducts = await Product.find();
+        var allProducts = await Product.find().skip(skip).limit(limit)
 
-        await client.setEx(cacheKey, 3600, JSON.stringify(allProducts));
+        // await client.setEx(cacheKey, 3600, JSON.stringify(allProducts));
 
         console.log("data from mongo db");
 
@@ -57,32 +62,28 @@ var getSingleProduct = async(req,res)=>{
 }
 
 
+var addNewProduct = async (req, res) => {
+    try {
+        var { title, description, price } = req.body;
 
-var addNewProduct = async(req,res)=>{
-    try{
-
-        var {title,description,price} = req.body
-        if(!req.file){
-            return res.status(200).json({message : "file missing"})
-        }
-        // upload to cloudinary
-        var {url,publicId} = await uploadToCloudinary(req.file.path)
         var newProduct = await Product.create({
-        title,
-        description,
-        price,
-        image : {
-            url,
-            publicId
-        }
-    })
-    await client.del("allProducts");
-    res.status(201).json({message : "productadded",product : newProduct})
-    }catch(error){
-        console.log("error",error);
-    }
-}
+            title,
+            description,
+            price
+        });
 
+        // clear cache
+        await client.del("allproducts"); // fix key name
+
+        res.status(201).json({
+            message: "product added",
+            product: newProduct
+        });
+
+    } catch (error) {
+        console.log("error", error);
+    }
+};
 var updateProduct = async(req,res)=>{
     try{
         var id = req.params.id 
