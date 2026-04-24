@@ -1,105 +1,83 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
+var User = require("../Model/UserModel")
+var bcrypt = require("bcrypt")
+var jwt = require("jsonwebtoken")
 
 // REGISTER
-export const registerUser = createAsyncThunk(
-  "auth/register",
-  async (userData, { rejectWithValue }) => {
-    const response = await fetch("https://apis-8.onrender.com/api/userRoutes/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(userData)
-    })
+var registerUser = async (req, res) => {
+  try {
+    var { name, email, password } = req.body
 
-    const data = await response.json()
+    var userExists = await User.findOne({ email })
 
-    if (!response.ok) {
-      if (data.message === "user exists") {
-        return rejectWithValue("Email already exists")
-      }
-      return rejectWithValue(data.message || "Registration failed")
+    if (userExists) {
+      return res.status(409).json({   // ❗ important
+        message: "user exists"
+      })
     }
 
-    return data
+    var hashPassword = await bcrypt.hash(password, 10)
+
+    var newUser = await User.create({
+      name,
+      email,
+      password: hashPassword
+    })
+
+    res.status(201).json({
+      message: "account created",
+      user: newUser
+    })
+
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: "server error" })
   }
-)
+}
+
 
 // LOGIN
-export const loginUser = createAsyncThunk(
-  "auth/login",
-  async (userData, { rejectWithValue }) => {
-    const response = await fetch("https://apis-8.onrender.com/api/userRoutes/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+var login = async (req, res) => {
+  try {
+    var { email, password } = req.body
+
+    var userExists = await User.findOne({ email })
+
+    if (!userExists) {
+      return res.status(404).json({
+        message: "User not found"
+      })
+    }
+
+    var checkPassword = await bcrypt.compare(password, userExists.password)
+
+    if (!checkPassword) {
+      return res.status(401).json({
+        message: "Incorrect password"
+      })
+    }
+
+    var token = jwt.sign(
+      {
+        userId: userExists._id,
+        email: userExists.email,
+        role: userExists.role
       },
-      body: JSON.stringify(userData)
+      process.env.JWT_TOKEN,
+      { expiresIn: "1d" }
+    )
+
+    res.status(200).json({
+      message: "login done",
+      webToken: token
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      return rejectWithValue(data.message || "Login failed")
-    }
-
-    return data
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: "server error" })
   }
-)
+}
 
-const authSlice = createSlice({
-  name: "authSlice",
-  initialState: {
-    user: null,
-    loading: false,
-    error: null,
-    token: localStorage.getItem("token") || null
-  },
-
-  reducers: {
-    logout: (state) => {
-      state.user = null
-      state.token = null
-      state.error = null
-      state.loading = false
-      localStorage.removeItem("token")
-    }
-  },
-
-  extraReducers: (builder) => {
-    builder
-
-      // REGISTER
-      .addCase(registerUser.pending, (state) => {
-        state.loading = true
-        state.error = null
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.loading = false
-        state.user = action.payload
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload
-      })
-
-      // LOGIN
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true
-        state.error = null
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.loading = false
-        state.user = action.payload
-        state.token = action.payload.webToken
-        localStorage.setItem("token", action.payload.webToken)
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload
-      })
-  }
-})
-
-export const { logout } = authSlice.actions
-export default authSlice.reducer
+module.exports = {
+  registerUser,
+  login
+}
