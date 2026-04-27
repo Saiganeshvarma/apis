@@ -19,14 +19,14 @@ const router = express.Router();
  * @desc    Get all products
  * @access  Private
  */
-router.get("/products", getAllProducts);
+router.get("/products",authMiddleware ,getAllProducts);
 
 /**
  * @route   GET /products/:id
  * @desc    Get single product
  * @access  Private (Admin)
  */
-router.get("/products/:id", authMiddleware, getSingleProduct);
+router.get("/products/:id",authMiddleware, getSingleProduct);
 
 /**
  * @route   POST /products
@@ -35,6 +35,8 @@ router.get("/products/:id", authMiddleware, getSingleProduct);
  */
 router.post(
   "/products",
+  authMiddleware,
+  adminMiddleware,
   upload.single("image"),
   addNewProduct
 );
