@@ -1,18 +1,18 @@
-var Product = require("../Model/ProductModel");
+const Product = require("../Model/ProductModel");
 const { uploadToCloudinary } = require("../helper/cloudinaryhelper");
-var { client } = require("../config/redisClient");
-
+const { client } = require("../config/redisClient");
+const fs = require("fs");
 
 // ✅ GET ALL PRODUCTS
-var getAllProducts = async (req, res) => {
+const getAllProducts = async (req, res) => {
     try {
-        var page = parseInt(req.query.page) || 1;
-        var limit = parseInt(req.query.limit) || 10;
-        var skip = (page - 1) * limit;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
 
-        var cacheKey = `allproducts:${page}:${limit}`;
+        const cacheKey = `allproducts:${page}:${limit}`;
 
-        var cachedData = await client.get(cacheKey);
+        const cachedData = await client.get(cacheKey);
 
         if (cachedData) {
             console.log("data from redis");
@@ -21,28 +21,26 @@ var getAllProducts = async (req, res) => {
             });
         }
 
-        var allProducts = await Product.find().skip(skip).limit(limit);
+        const products = await Product.find().skip(skip).limit(limit);
 
-        await client.setEx(cacheKey, 3600, JSON.stringify(allProducts));
+        await client.setEx(cacheKey, 3600, JSON.stringify(products));
 
         console.log("data from mongo db");
 
-        return res.status(200).json({
-            products: allProducts
-        });
+        return res.status(200).json({ products });
 
     } catch (error) {
-        console.log("error", error);
+        console.log("FULL ERROR:", error);
         return res.status(500).json({ message: "Server Error" });
     }
 };
 
 
 // ✅ GET SINGLE PRODUCT
-var getSingleProduct = async (req, res) => {
+const getSingleProduct = async (req, res) => {
     try {
-        var id = req.params.id;
-        var cacheKey = `product:${id}`;
+        const id = req.params.id;
+        const cacheKey = `product:${id}`;
 
         const cachedData = await client.get(cacheKey);
 
@@ -52,31 +50,31 @@ var getSingleProduct = async (req, res) => {
             });
         }
 
-        const singleProduct = await Product.findById(id);
+        const product = await Product.findById(id);
 
-        if (!singleProduct) {
+        if (!product) {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        await client.setEx(cacheKey, 3600, JSON.stringify(singleProduct));
+        await client.setEx(cacheKey, 3600, JSON.stringify(product));
 
-        return res.status(200).json({ singleProduct });
+        return res.status(200).json({ singleProduct: product });
 
     } catch (error) {
-        console.log("error", error);
+        console.log("FULL ERROR:", error);
         return res.status(500).json({ message: "Server Error" });
     }
 };
 
 
 // ✅ ADD PRODUCT
-var addNewProduct = async (req, res) => {
+const addNewProduct = async (req, res) => {
     try {
-        if (!req.body) {
-            return res.status(400).json({ message: "Body is missing" });
-        }
+        const { title, description, price } = req.body;
 
-        var { title, description, price } = req.body;
+        if (!title || !description || !price) {
+            return res.status(400).json({ message: "All fields required" });
+        }
 
         if (!req.file) {
             return res.status(400).json({ message: "Image file is required" });
@@ -84,43 +82,59 @@ var addNewProduct = async (req, res) => {
 
         const result = await uploadToCloudinary(req.file.path);
 
-        var newProduct = await Product.create({
+        // delete local file after upload
+        fs.unlinkSync(req.file.path);
+
+        const product = await Product.create({
             title,
             description,
             price,
             image: {
-                publicId: result.public_id,
-                url: result.secure_url
+                publicId: result.publicId,
+                url: result.url
             }
         });
 
-        // ✅ clear all product list cache
+        // clear cache safely
         const keys = await client.keys("allproducts:*");
         if (keys.length > 0) {
-            await client.del(keys);
+            await client.del(...keys);
         }
 
         return res.status(201).json({
             message: "Product added",
-            product: newProduct
+            product
         });
 
     } catch (error) {
-        console.log("error", error);
+        console.log("FULL ERROR:", error);
         return res.status(500).json({ message: "Server Error" });
     }
 };
 
 
-// ✅ UPDATE PRODUCT
-var updateProduct = async (req, res) => {
+// ✅ UPDATE PRODUCT (with optional image update)
+const updateProduct = async (req, res) => {
     try {
-        var id = req.params.id;
-        var { title, description, price } = req.body;
+        const id = req.params.id;
+        const { title, description, price } = req.body;
 
-        var updatedProduct = await Product.findByIdAndUpdate(
+        let updateData = { title, description, price };
+
+        // if new image uploaded
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.path);
+            fs.unlinkSync(req.file.path);
+
+            updateData.image = {
+                publicId: result.publicId,
+                url: result.url
+            };
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(
             id,
-            { title, description, price },
+            updateData,
             { new: true }
         );
 
@@ -128,10 +142,9 @@ var updateProduct = async (req, res) => {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        // ✅ clear caches properly
         const keys = await client.keys("allproducts:*");
         if (keys.length > 0) {
-            await client.del(keys);
+            await client.del(...keys);
         }
 
         await client.del(`product:${id}`);
@@ -142,27 +155,26 @@ var updateProduct = async (req, res) => {
         });
 
     } catch (error) {
-        console.log("error", error);
+        console.log("FULL ERROR:", error);
         return res.status(500).json({ message: "Server Error" });
     }
 };
 
 
 // ✅ DELETE PRODUCT
-var deleteProduct = async (req, res) => {
+const deleteProduct = async (req, res) => {
     try {
-        var id = req.params.id;
+        const id = req.params.id;
 
-        var deletedProduct = await Product.findByIdAndDelete(id);
+        const deletedProduct = await Product.findByIdAndDelete(id);
 
         if (!deletedProduct) {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        // ✅ clear caches
         const keys = await client.keys("allproducts:*");
         if (keys.length > 0) {
-            await client.del(keys);
+            await client.del(...keys);
         }
 
         await client.del(`product:${id}`);
@@ -172,11 +184,10 @@ var deleteProduct = async (req, res) => {
         });
 
     } catch (error) {
-        console.log("error", error);
+        console.log("FULL ERROR:", error);
         return res.status(500).json({ message: "Server Error" });
     }
 };
-
 
 module.exports = {
     getAllProducts,
