@@ -1,20 +1,27 @@
 const { createClient } = require("redis");
 
 const client = createClient({
-  url: process.env.REDIS_URL, // your cloud URL
+  url: process.env.REDIS_URL,
+  socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
+  },
 });
 
 client.on("error", (err) => {
-  console.log("Redis Error:", err);
+  console.error("Redis error:", err.message);
 });
 
-// ✅ connect here
+client.on("reconnecting", () => {
+  console.warn("Redis reconnecting...");
+});
+
 const connectRedis = async () => {
   try {
     await client.connect();
-    console.log("✅ Redis Connected");
+    console.log("✅ Redis connected");
   } catch (error) {
-    console.log("❌ Redis Connection Error:", error);
+    console.error("❌ Redis connection error:", error.message);
+    process.exit(1);
   }
 };
 

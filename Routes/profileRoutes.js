@@ -1,13 +1,10 @@
-var express = require("express")
-const { getProfile, updateProfile } = require("../Controller/profileController")
-const authMiddleware = require("../Middleware/authMiddleware")
+const express = require("express");
+const { getProfile, updateProfile } = require("../Controller/profileController");
+const authMiddleware = require("../Middleware/authMiddleware");
 
-var router = express.Router()
+const router = express.Router();
 
+router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
 
-router.get("/profile/:id",getProfile)
-
-router.put("/updateprofile/:id",updateProfile)
-
-
-module.exports = router 
+module.exports = router;

@@ -1,83 +1,82 @@
-var User = require("../Model/UserModel")
-var bcrypt = require("bcrypt")
-var jwt = require("jsonwebtoken")
+const User = require("../Model/UserModel");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
-// REGISTER
-var registerUser = async (req, res) => {
+// ─── REGISTER ────────────────────────────────────────────────────────────────
+const registerUser = async (req, res) => {
   try {
-    var { name, email, password } = req.body
+    const { name, email, password } = req.body;
 
-    var userExists = await User.findOne({ email })
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email, and password are required" });
+    }
 
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
     if (userExists) {
-      return res.status(409).json({   // ❗ important
-        message: "user exists"
-      })
+      return res.status(409).json({ message: "Email already registered" });
     }
 
-    var hashPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    var newUser = await User.create({
-      name,
-      email,
-      password: hashPassword
-    })
+    const newUser = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+    });
 
-    res.status(201).json({
-      message: "account created",
-      user: newUser
-    })
-
+    return res.status(201).json({
+      message: "Account created successfully",
+      user: newUser, // password stripped via toJSON()
+    });
   } catch (error) {
-    console.log(error)
-    res.status(500).json({ message: "server error" })
+    console.error("registerUser error:", error);
+    return res.status(500).json({ message: "Server error" });
   }
-}
+};
 
-
-// LOGIN
-var login = async (req, res) => {
+// ─── LOGIN ───────────────────────────────────────────────────────────────────
+const login = async (req, res) => {
   try {
-    var { email, password } = req.body
+    const { email, password } = req.body;
 
-    var userExists = await User.findOne({ email })
-
-    if (!userExists) {
-      return res.status(404).json({
-        message: "User not found"
-      })
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
-    var checkPassword = await bcrypt.compare(password, userExists.password)
-
-    if (!checkPassword) {
-      return res.status(401).json({
-        message: "Incorrect password"
-      })
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
+    if (!user) {
+      // generic message to avoid user enumeration
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    var token = jwt.sign(
-      {
-        userId: userExists._id,
-        email: userExists.email,
-        role: userExists.role
-      },
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
       process.env.JWT_TOKEN,
       { expiresIn: "1d" }
-    )
+    );
 
-    res.status(200).json({
-      message: "login done",
-      webToken: token
-    })
-
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+    });
   } catch (error) {
-    console.log(error)
-    res.status(500).json({ message: "server error" })
+    console.error("login error:", error);
+    return res.status(500).json({ message: "Server error" });
   }
-}
+};
 
-module.exports = {
-  registerUser,
-  login
-}
+module.exports = { registerUser, login };

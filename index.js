@@ -1,50 +1,109 @@
 require("dotenv").config();
-var cors = require("cors");
-var express = require("express");
 
-const connectToDatabase = require("./database/db.js");
+const express = require("express");
+const cors = require("cors");
+
+const connectToDatabase = require("./DataBase/db.js");
 const { connectRedis } = require("./config/redisClient.js");
 const { createLimiters } = require("./Middleware/rateLimiter");
 
-// routes
-var useRoutes = require("./Routes/userRoutes");
-var productRoutes = require("./Routes/ProductRoutes.js");
-var profileRoutes = require("./Routes/profileRoutes.js");
-var cartRoutes = require("./Routes/cartRoutes.js");
-var paymentRoutes = require("./Routes/paymentRoutes.js");
-var orderRoutes = require("./Routes/orderRoutes.js");
+const userRoutes = require("./Routes/userRoutes");
+const productRoutes = require("./Routes/ProductRoutes.js");
+const profileRoutes = require("./Routes/profileRoutes.js");
+const cartRoutes = require("./Routes/cartRoutes.js");
+const paymentRoutes = require("./Routes/paymentRoutes.js");
+const orderRoutes = require("./Routes/orderRoutes.js");
 
-var app = express();
+const app = express();
 
-app.use(cors());
-app.use(express.json());
+// ─── CORS ────────────────────────────────────────────────────────────────────
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : [];
 
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
+// ─── BODY PARSING ────────────────────────────────────────────────────────────
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
+// ─── REQUEST LOGGING ─────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== "test") {
+  const morgan = require("morgan");
+  app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+}
+
+// ─── HEALTH CHECK ────────────────────────────────────────────────────────────
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// ─── STARTUP ─────────────────────────────────────────────────────────────────
 const startServer = async () => {
-  // ✅ 1. Connect Redis FIRST
+  // validate required env vars before anything else
+  const required = [
+    "MONGO_URL",
+    "JWT_TOKEN",
+    "RAZORPAY_KEY_ID",
+    "RAZORPAY_KEY_SECRET",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "REDIS_URL",
+    "PORT",
+  ];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) {
+    console.error(`❌ Missing required environment variables: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+
   await connectRedis();
+  await connectToDatabase();
 
-  // ✅ 2. Create limiters AFTER Redis
-  const { productLimiter, adminLimiter } = createLimiters();
+  const { productLimiter, authLimiter } = createLimiters();
 
-  // ✅ 3. Apply limiters
-  app.use("/api/productRoutes", productRoutes);
-  app.use("/api/adminRoutes", adminLimiter); // optional for admin
-
-  // routes
-  app.use("/api/userRoutes", useRoutes);
+  // ─── ROUTES ────────────────────────────────────────────────────────────────
+  app.use("/api/userRoutes", authLimiter, userRoutes);
+  app.use("/api/productRoutes", productLimiter, productRoutes);
   app.use("/api/profileRoutes", profileRoutes);
   app.use("/api/cartRoutes", cartRoutes);
   app.use("/api/paymentRoutes", paymentRoutes);
   app.use("/api/orderRoutes", orderRoutes);
 
-  // DB
-  await connectToDatabase();
+  // ─── 404 HANDLER ───────────────────────────────────────────────────────────
+  app.use((req, res) => {
+    res.status(404).json({ message: "Route not found" });
+  });
 
-  app.listen(process.env.PORT, () => {
-    console.log("The server is running");
+  // ─── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    console.error("Unhandled error:", err);
+    res.status(err.status || 500).json({
+      message: err.message || "Internal server error",
+    });
+  });
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
   });
 };
 
-startServer();
+startServer().catch((err) => {
+  console.error("❌ Failed to start server:", err);
+  process.exit(1);
+});

@@ -1,94 +1,54 @@
-var Cart = require("../Model/cartModel")
-var Product = require("../Model/ProductModel")
-var razorpay = require("../config/razorpay")
-var mongoose = require("mongoose")
+const Cart = require("../Model/cartModel");
+const razorpay = require("../config/razorpay");
 
-var Cart = require("../Model/cartModel")
-var Product = require("../Model/ProductModel")
-var razorpay = require("../config/razorpay")
+const checkout = async (req, res) => {
+  try {
+    const userId = req.user.userId;
 
-var checkout = async (req, res) => {
-    try {
-        var userId = req.user.userId
+    const cart = await Cart.findOne({ userId }).populate("items.product", "price title stock");
 
-        // =========================
-        // 1. Get Cart
-        // =========================
-        var cart = await Cart.findOne({ userId })
-
-        if (!cart || !cart.items || cart.items.length === 0) {
-            return res.status(400).json({ message: "cart empty" })
-        }
-
-        console.log("CART FOUND:", cart)
-
-        // =========================
-        // 2. Get All Products (Optimized)
-        // =========================
-        var productIds = cart.items.map(item => item.product)
-
-        var products = await Product.find({
-            _id: { $in: productIds }
-        })
-
-        // =========================
-        // 3. Calculate Total
-        // =========================
-        var totalAmount = 0
-
-        for (let item of cart.items) {
-            var product = products.find(
-                p => p._id.toString() === item.product.toString()
-            )
-
-            if (!product) {
-                return res.status(400).json({ message: "product not found" })
-            }
-
-            totalAmount += product.price * item.quantity
-        }
-
-        console.log("Total Amount:", totalAmount)
-
-        // =========================
-        // 4. Safety Check
-        // =========================
-        if (totalAmount <= 0) {
-            return res.status(400).json({ message: "invalid amount" })
-        }
-
-        // =========================
-        // 5. Create Razorpay Order
-        // =========================
-        var order = await razorpay.orders.create({
-            amount: totalAmount * 100, // convert to paise
-            currency: "INR",
-            receipt: `receipt_${Date.now()}`,
-            notes: {
-                userId: userId
-            }
-        })
-
-        console.log("ORDER CREATED:", order)
-
-        // =========================
-        // 6. Send Response
-        // =========================
-        res.status(200).json({
-            message: "checkout created",
-            order,
-            totalAmount
-        })
-
-    } catch (error) {
-        console.log("FULL ERROR:", error)
-
-        res.status(500).json({
-            error: error.message || "server error"
-        })
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
     }
-}
 
-module.exports = {
-    checkout
-}
+    let totalAmount = 0;
+
+    for (const item of cart.items) {
+      const product = item.product;
+
+      if (!product) {
+        return res.status(400).json({ message: "One or more products no longer exist" });
+      }
+
+      if (product.stock !== undefined && product.stock < item.quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for "${product.title}"`,
+        });
+      }
+
+      totalAmount += product.price * item.quantity;
+    }
+
+    if (totalAmount <= 0) {
+      return res.status(400).json({ message: "Invalid cart total" });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(totalAmount * 100), // paise, must be integer
+      currency: "INR",
+      receipt: `rcpt_${Date.now()}`,
+      notes: { userId },
+    });
+
+    return res.status(200).json({
+      message: "Checkout initiated",
+      order,
+      totalAmount,
+    });
+  } catch (error) {
+    console.error("checkout error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { checkout };
