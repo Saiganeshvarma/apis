@@ -16,43 +16,29 @@ const orderRoutes = require("./Routes/orderRoutes.js");
 
 const app = express();
 
-// ─── CORS ────────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : [];
-
+// ─── ✅ CORS FIX (IMPORTANT) ─────────────────────────────────────
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
+    origin: "*", // allow all (safe for development)
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// ─── BODY PARSING ────────────────────────────────────────────────────────────
+// ─── BODY PARSING ────────────────────────────────────────────────
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-// ─── REQUEST LOGGING ─────────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== "test") {
-  const morgan = require("morgan");
-  app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-}
-
-// ─── HEALTH CHECK ────────────────────────────────────────────────────────────
+// ─── HEALTH CHECK ────────────────────────────────────────────────
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// ─── STARTUP ─────────────────────────────────────────────────────────────────
+// ─── START SERVER ────────────────────────────────────────────────
 const startServer = async () => {
-  // validate required env vars before anything else
   const required = [
     "MONGO_URL",
     "JWT_TOKEN",
@@ -64,18 +50,20 @@ const startServer = async () => {
     "REDIS_URL",
     "PORT",
   ];
+
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length) {
-    console.error(`❌ Missing required environment variables: ${missing.join(", ")}`);
+    console.error(`❌ Missing env vars: ${missing.join(", ")}`);
     process.exit(1);
   }
 
+  // connect services
   await connectRedis();
   await connectToDatabase();
 
   const { productLimiter, authLimiter } = createLimiters();
 
-  // ─── ROUTES ────────────────────────────────────────────────────────────────
+  // ─── ROUTES ───────────────────────────────────────────────────
   app.use("/api/userRoutes", authLimiter, userRoutes);
   app.use("/api/productRoutes", productLimiter, productRoutes);
   app.use("/api/profileRoutes", profileRoutes);
@@ -83,13 +71,12 @@ const startServer = async () => {
   app.use("/api/paymentRoutes", paymentRoutes);
   app.use("/api/orderRoutes", orderRoutes);
 
-  // ─── 404 HANDLER ───────────────────────────────────────────────────────────
+  // ─── 404 HANDLER ──────────────────────────────────────────────
   app.use((req, res) => {
     res.status(404).json({ message: "Route not found" });
   });
 
-  // ─── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────
-  // eslint-disable-next-line no-unused-vars
+  // ─── GLOBAL ERROR HANDLER ─────────────────────────────────────
   app.use((err, req, res, next) => {
     console.error("Unhandled error:", err);
     res.status(err.status || 500).json({
@@ -99,7 +86,7 @@ const startServer = async () => {
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
+    console.log(`✅ Server running on port ${PORT}`);
   });
 };
 
