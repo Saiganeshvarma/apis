@@ -17,13 +17,7 @@ const orderRoutes = require("./Routes/orderRoutes.js");
 const app = express();
 
 // ─── ✅ CORS FIX (IMPORTANT) ─────────────────────────────────────
-app.use(
-  cors({
-    origin: "*", // allow all (safe for development)
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use();
 
 // ─── BODY PARSING ────────────────────────────────────────────────
 app.use(express.json({ limit: "10kb" }));
