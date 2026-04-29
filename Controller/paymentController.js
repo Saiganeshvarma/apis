@@ -20,11 +20,7 @@ const checkout = async (req, res) => {
         return res.status(400).json({ message: "One or more products no longer exist" });
       }
 
-      // if (product.stock !== undefined && product.stock < item.quantity) {
-      //   return res.status(400).json({
-      //     message: `Insufficient stock for "${product.title}"`,
-      //   });
-      // }
+      
 
       totalAmount += product.price * item.quantity;
     }
